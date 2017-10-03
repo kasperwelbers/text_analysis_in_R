@@ -1,0 +1,208 @@
+---
+title: 'Text Analysis in R: online appendix'
+author: "Kasper Welbers, Wouter van Atteveldt & Kenneth Benoit"
+date: "2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## About this document
+
+This is the online appendix for xxx, that contains the example code presented in the article. The code in this appendix will be kept up-to-date with changes in the used packages, and as such can differ slightly from the code presented in the article.
+
+In addition, this appendix contains references to other tutorials, that provide additional instructions for alternative, more in-dept or newly developed text anaysis operations.
+
+### required packages
+
+The following packages have to be installed to run all the code examples. Note that the lines to install the packages only have to be run once.
+
+```{r, eval=F}
+################# PACKAGE       ## SECTION IN ARTICLE
+install.packages("readtext")    ## data preparation
+install.packages("stringi")     ## data preparation
+install.packages("quanteda")    ## data preparation and analysis
+install.packages("topicmodels") ## analysis
+install.packages("spacyr")      ## advanced topics
+install.packages("corpustools") ## advanced topics
+```
+
+## Data Preparation
+
+### String Operations
+
+```{r}
+library(readtext)  
+
+## url to Inaugural Address demo data that is provided by the readtext package 
+filepath <- "http://bit.ly/2uhqjJE?.csv"
+
+rt <- readtext(filepath, text_field = "texts") 
+rt
+```
+
+### String Operations
+
+```{r}
+library(stringi) 
+x <- c("The first string", ' The <font size="6">second string</font>') 
+
+x <- stri_replace_all(x, "", regex = "<.*?>")   ## remove html tags 
+x <- stri_trim(x)                               ## strip surrounding whitespace
+x <- stri_trans_tolower(x)                      ## transform to lower case 
+x
+```
+
+### Preprocessing
+
+#### Tokenization
+
+```{r}
+library(quanteda) 
+
+text <- "An example of preprocessing techniques" 
+toks <- tokens(text)  ## tokenize into unigrams 
+toks
+```
+
+#### Normalization: lowercasing and stemming
+
+```{r}
+toks <- tokens_tolower(toks) 
+toks <- tokens_wordstem(toks) 
+toks
+```
+
+#### Removing stopwords
+
+```{r}
+sw <- stopwords("english")   ## get character vector of stopwords 
+head(sw)                     ## show head (first 6) stopwords
+tokens_remove(toks, sw)
+```
+
+### Document-Term Matrix
+
+```{r}
+text <-  c(d1 = "An example of preprocessing techniques",  
+           d2 = "An additional example",  
+           d3 = "A third example") 
+dtm <- dfm(text,                           ## input text
+           tolower = TRUE, stem = TRUE,    ## set lowercasing and stemming to TRUE
+           remove = stopwords("english"))  ## provide the stopwords for deletion
+dtm
+
+fulltext <- corpus(rt)                              ## create quanteda corpus 
+dtm <- dfm(fulltext, tolower = TRUE, stem = TRUE,   ## create dtm with preprocessing
+           remove_punct = TRUE,remove = stopwords("english")) 
+dtm
+```
+
+### Filtering and weighting
+
+```{r}
+doc_freq <- docfreq(dtm)         ## document frequency per term (column) 
+dtm <- dtm[, doc_freq >= 2]      ## select terms with doc_freq >= 2 
+dtm <- dfm_weight(dtm, "tfidf")  ## weight the features using tf-idf 
+head(dtm)
+```
+
+## Analysis
+
+Prepare DTM for analysis examples.
+
+```{r}
+dtm <- dfm(data_corpus_inaugural, stem = TRUE, remove = stopwords("english"),  
+                                  remove_punct = TRUE) 
+dtm
+```
+
+### Counting and Dictionary
+
+```{r}
+myDict <- dictionary(list(terror = c("terror*"), 
+                          economy = c("job*", "business*", "econom*"))) 
+dict_dtm <- dfm_lookup(dtm, myDict, nomatch = "_unmatched") 
+tail(dict_dtm)
+```
+
+### Supervised Machine Learning
+
+```{r}
+set.seed(2) 
+## create a document variable indicating pre or post war 
+docvars(dtm, "is_prewar") <- docvars(dtm, "Year") < 1945 
+
+## sample 40 documents for the training set and use remaining (18) for testing 
+train_dtm <- dfm_sample(dtm, size = 40)
+test_dfm <- dtm[setdiff(docnames(dtm), docnames(train_dtm)), ] 
+
+## fit a Naive Bayes multinomial model and use it to predict the test data 
+nb_model <- textmodel_NB(train_dtm, y = docvars(train_dtm, "is_prewar")) 
+pred_nb <- predict(nb_model, newdata = test_dfm)
+
+## compare prediction (rows) and actual is_prewar value (columns) in a table 
+table(prediction = pred_nb$nb.predicted, is_prewar = docvars(test_dfm, "is_prewar"))
+```
+
+### Unsupervised Machine Learning
+
+```{r}
+library(topicmodels) 
+
+texts = corpus_reshape(data_corpus_inaugural, to = 'paragraphs')
+
+par_dtm <- dfm(texts, stem = TRUE,          	## create a document-term matrix
+               remove_punct = TRUE, remove = stopwords("english"))
+par_dtm <- dfm_trim(par_dtm, min_count = 5) 	## remove rare terms
+par_dtm <- convert(par_dtm, to = "topicmodels") ## convert to topicmodels format
+
+set.seed(1)
+lda_model <- topicmodels::LDA(par_dtm, method = "Gibbs", k = 5) 
+terms(lda_model, 5)
+```
+
+### Statistics
+
+```{r}
+## create DTM that contains Trump and Obama speeches
+corpus_pres = corpus_subset(data_corpus_inaugural, 
+                            President %in% c("Obama", "Trump"))
+dtm_pres = dfm(corpus_pres, groups = "President", 
+               remove = stopwords("english"), remove_punct = TRUE)
+
+## compare target (in this case Trump) to rest of DTM (in this case only Obama).
+keyness = textstat_keyness(dtm_pres, target = "Trump") 
+textplot_keyness(keyness)
+```
+
+
+## Advanced Topics
+
+### Advanced NLP
+
+```{r}
+library(spacyr) 
+
+spacy_initialize() 
+d = spacy_parse("Bob Smith gave Alice his login information.", dependency = TRUE) 
+d[,-c(1,2)]
+```
+
+### Word Positions and Syntax
+
+```{r}
+text <- "an example of preprocessing techniques" 
+tokens(text, ngrams = 3, skip = 0:1)
+```
+
+```{r}
+library(corpustools)
+ 
+tc <- create_tcorpus(sotu_texts, doc_column = "id") 
+hits <- tc$search_features('"freedom americ*"~5')
+kwic <- tc$kwic(hits, ntokens = 3) 
+head(kwic$kwic, 3)
+```
