@@ -67,8 +67,8 @@ x
 
 ``` r
 library(quanteda) 
-## quanteda version 0.99.10
-## Using 7 of 8 threads for parallel computing
+## quanteda version 0.99.12
+## Using 3 of 4 threads for parallel computing
 ## 
 ## Attaching package: 'quanteda'
 ## The following object is masked from 'package:utils':
@@ -141,20 +141,13 @@ dtm <- dfm_weight(dtm, "tfidf")  # weight the features using tf-idf
 head(dtm)
 ## Document-feature matrix of: 5 documents, 6 features (40% sparse).
 ## 5 x 6 sparse Matrix of class "dfmSparse"
-##                 features
-## docs             fellow-citizen   senat    hous    repres      among
-##   2uhqjJE?.csv.1      0.2218487 0.39794 0.79588 0.4436975 0.09691001
-##   2uhqjJE?.csv.2      0         0       0       0         0         
-##   2uhqjJE?.csv.3      0.6655462 0.39794 1.19382 0.6655462 0.38764005
-##   2uhqjJE?.csv.4      0.4436975 0       0       0.2218487 0.09691001
-##   2uhqjJE?.csv.5      0         0       0       0         0.67837009
-##                 features
-## docs                   life
-##   2uhqjJE?.csv.1 0.09691001
-##   2uhqjJE?.csv.2 0         
-##   2uhqjJE?.csv.3 0.19382003
-##   2uhqjJE?.csv.4 0.09691001
-##   2uhqjJE?.csv.5 0.19382003
+##        features
+## docs    fellow-citizen   senat    hous    repres      among       life
+##   text1      0.2218487 0.39794 0.79588 0.4436975 0.09691001 0.09691001
+##   text2      0         0       0       0         0          0         
+##   text3      0.6655462 0.39794 1.19382 0.6655462 0.38764005 0.19382003
+##   text4      0.4436975 0       0       0.2218487 0.09691001 0.09691001
+##   text5      0         0       0       0         0.67837009 0.19382003
 ```
 
 Analysis
@@ -197,14 +190,14 @@ docvars(dtm, "is_prewar") <- docvars(dtm, "Year") < 1945
 
 # sample 40 documents for the training set and use remaining (18) for testing 
 train_dtm <- dfm_sample(dtm, size = 40)
-test_dfm <- dtm[setdiff(docnames(dtm), docnames(train_dtm)), ] 
+test_dtm <- dtm[setdiff(docnames(dtm), docnames(train_dtm)), ] 
 
 # fit a Naive Bayes multinomial model and use it to predict the test data 
 nb_model <- textmodel_NB(train_dtm, y = docvars(train_dtm, "is_prewar")) 
-pred_nb <- predict(nb_model, newdata = test_dfm)
+pred_nb <- predict(nb_model, newdata = test_dtm)
 
 # compare prediction (rows) and actual is_prewar value (columns) in a table 
-table(prediction = pred_nb$nb.predicted, is_prewar = docvars(test_dfm, "is_prewar"))
+table(prediction = pred_nb$nb.predicted, is_prewar = docvars(test_dtm, "is_prewar"))
 ##           is_prewar
 ## prediction FALSE TRUE
 ##      FALSE     8    0
@@ -257,8 +250,9 @@ Advanced Topics
 
 ``` r
 library(spacyr) 
-
-spacy_initialize(python_executable = "/usr/local/bin/python") 
+spacy_initialize()
+## Finding a python executable with spacy installed...
+## spaCy (language model: en) is installed in /usr/bin/python
 ## successfully initialized (spaCy Version: 1.9.0, language model: en)
 d <- spacy_parse("Bob Smith gave Alice his login information.", dependency = TRUE) 
 d[, -c(1,2)]
@@ -293,7 +287,7 @@ library(corpustools)
  
 tc <- create_tcorpus(sotu_texts, doc_column = "id") 
 hits <- tc$search_features('"freedom americ*"~5')
-## Created feature index
+## created index for "token" column
 kwic <- tc$kwic(hits, ntokens = 3) 
 head(kwic$kwic, 3)
 ## [1] "...making progress toward <freedom> will find <America> is their friend..."    

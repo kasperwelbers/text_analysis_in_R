@@ -137,14 +137,14 @@ docvars(dtm, "is_prewar") <- docvars(dtm, "Year") < 1945
 
 # sample 40 documents for the training set and use remaining (18) for testing 
 train_dtm <- dfm_sample(dtm, size = 40)
-test_dfm <- dtm[setdiff(docnames(dtm), docnames(train_dtm)), ] 
+test_dtm <- dtm[setdiff(docnames(dtm), docnames(train_dtm)), ] 
 
 # fit a Naive Bayes multinomial model and use it to predict the test data 
 nb_model <- textmodel_NB(train_dtm, y = docvars(train_dtm, "is_prewar")) 
-pred_nb <- predict(nb_model, newdata = test_dfm)
+pred_nb <- predict(nb_model, newdata = test_dtm)
 
 # compare prediction (rows) and actual is_prewar value (columns) in a table 
-table(prediction = pred_nb$nb.predicted, is_prewar = docvars(test_dfm, "is_prewar"))
+table(prediction = pred_nb$nb.predicted, is_prewar = docvars(test_dtm, "is_prewar"))
 ```
 
 ### Unsupervised Machine Learning
@@ -185,8 +185,7 @@ textplot_keyness(keyness)
 
 ```{r}
 library(spacyr) 
-
-spacy_initialize(python_executable = "/usr/local/bin/python") 
+spacy_initialize()
 d <- spacy_parse("Bob Smith gave Alice his login information.", dependency = TRUE) 
 d[, -c(1,2)]
 ```
