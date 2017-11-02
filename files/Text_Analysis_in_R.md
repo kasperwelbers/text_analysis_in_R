@@ -6,7 +6,7 @@ Kasper Welbers, Wouter van Atteveldt & Kenneth Benoit
 About this document
 -------------------
 
-This is the online appendix for xxx, that contains the example code presented in the article. The code in this appendix will be kept up-to-date with changes in the used packages, and as such can differ slightly from the code presented in the article.
+This is the online appendix for [Welbers, van Atteveldt & Benoit (2017)](http://www.tandfonline.com/doi/full/10.1080/19312458.2017.1387238), that contains the example code presented in the article. The code in this appendix will be kept up-to-date with changes in the used packages, and as such can differ slightly from the code presented in the article.
 
 In addition, this appendix contains references to other tutorials, that provide additional instructions for alternative, more in-dept or newly developed text anaysis operations.
 
