@@ -31,21 +31,20 @@ Data Preparation
 
 ``` r
 library(readtext)  
-
 # url to Inaugural Address demo data that is provided by the readtext package 
-filepath <- "http://bit.ly/2uhqjJE?.csv"
+filepath <- "https://raw.githubusercontent.com/kbenoit/readtext/master/inst/extdata/csv/inaugCorpus.csv"
 
 rt <- readtext(filepath, text_field = "texts") 
 rt
 ## readtext object consisting of 5 documents and 3 docvars.
 ## # data.frame [5 x 5]
-##           doc_id                text  Year  President FirstName
-##            <chr>               <chr> <int>      <chr>     <chr>
-## 1 2uhqjJE?.csv.1 "\"Fellow-Cit\"..."  1789 Washington    George
-## 2 2uhqjJE?.csv.2 "\"Fellow cit\"..."  1793 Washington    George
-## 3 2uhqjJE?.csv.3 "\"When it wa\"..."  1797      Adams      John
-## 4 2uhqjJE?.csv.4 "\"Friends an\"..."  1801  Jefferson    Thomas
-## 5 2uhqjJE?.csv.5 "\"Proceeding\"..."  1805  Jefferson    Thomas
+##              doc_id                text  Year  President FirstName
+##               <chr>               <chr> <int>      <chr>     <chr>
+## 1 inaugCorpus.csv.1 "\"Fellow-Cit\"..."  1789 Washington    George
+## 2 inaugCorpus.csv.2 "\"Fellow cit\"..."  1793 Washington    George
+## 3 inaugCorpus.csv.3 "\"When it wa\"..."  1797      Adams      John
+## 4 inaugCorpus.csv.4 "\"Friends an\"..."  1801  Jefferson    Thomas
+## 5 inaugCorpus.csv.5 "\"Proceeding\"..."  1805  Jefferson    Thomas
 ```
 
 ### String Operations
@@ -67,8 +66,9 @@ x
 
 ``` r
 library(quanteda) 
-## quanteda version 0.99.12
-## Using 3 of 4 threads for parallel computing
+## Package version: 1.3.0
+## Parallel computing: 2 of 4 threads used.
+## See https://quanteda.io for tutorials and examples.
 ## 
 ## Attaching package: 'quanteda'
 ## The following object is masked from 'package:utils':
@@ -118,7 +118,7 @@ dtm <- dfm(text,                           # input text
            remove = stopwords("english"))  # provide the stopwords for deletion
 dtm
 ## Document-feature matrix of: 3 documents, 5 features (53.3% sparse).
-## 3 x 5 sparse Matrix of class "dfmSparse"
+## 3 x 5 sparse Matrix of class "dfm"
 ##     features
 ## docs exampl preprocess techniqu addit third
 ##   d1      1          1        1     0     0
@@ -138,16 +138,9 @@ dtm
 doc_freq <- docfreq(dtm)         # document frequency per term (column) 
 dtm <- dtm[, doc_freq >= 2]      # select terms with doc_freq >= 2 
 dtm <- dfm_weight(dtm, "tfidf")  # weight the features using tf-idf 
+## Warning: scheme = "tfidf" is deprecated; use dfm_tfidf(x) instead
 head(dtm)
-## Document-feature matrix of: 5 documents, 6 features (40% sparse).
-## 5 x 6 sparse Matrix of class "dfmSparse"
-##        features
-## docs    fellow-citizen   senat    hous    repres      among       life
-##   text1      0.2218487 0.39794 0.79588 0.4436975 0.09691001 0.09691001
-##   text2      0         0       0       0         0          0         
-##   text3      0.6655462 0.39794 1.19382 0.6655462 0.38764005 0.19382003
-##   text4      0.4436975 0       0       0.2218487 0.09691001 0.09691001
-##   text5      0         0       0       0         0.67837009 0.19382003
+## Document-feature matrix of: 5 documents, 516 features (46.9% sparse).
 ```
 
 Analysis
@@ -170,7 +163,7 @@ myDict <- dictionary(list(terror = c("terror*"),
 dict_dtm <- dfm_lookup(dtm, myDict, nomatch = "_unmatched") 
 tail(dict_dtm)
 ## Document-feature matrix of: 6 documents, 3 features (16.7% sparse).
-## 6 x 3 sparse Matrix of class "dfmSparse"
+## 6 x 3 sparse Matrix of class "dfm"
 ##               features
 ## docs           terror economy _unmatched
 ##   1997-Clinton      2       3       1125
@@ -193,11 +186,11 @@ train_dtm <- dfm_sample(dtm, size = 40)
 test_dtm <- dtm[setdiff(docnames(dtm), docnames(train_dtm)), ] 
 
 # fit a Naive Bayes multinomial model and use it to predict the test data 
-nb_model <- textmodel_NB(train_dtm, y = docvars(train_dtm, "is_prewar")) 
+nb_model <- textmodel_nb(train_dtm, y = docvars(train_dtm, "is_prewar")) 
 pred_nb <- predict(nb_model, newdata = test_dtm)
 
 # compare prediction (rows) and actual is_prewar value (columns) in a table 
-table(prediction = pred_nb$nb.predicted, is_prewar = docvars(test_dtm, "is_prewar"))
+table(prediction = pred_nb, is_prewar = docvars(test_dtm, "is_prewar"))
 ##           is_prewar
 ## prediction FALSE TRUE
 ##      FALSE     8    0
@@ -214,6 +207,8 @@ texts = corpus_reshape(data_corpus_inaugural, to = "paragraphs")
 par_dtm <- dfm(texts, stem = TRUE,              # create a document-term matrix
                remove_punct = TRUE, remove = stopwords("english"))
 par_dtm <- dfm_trim(par_dtm, min_count = 5)     # remove rare terms
+## Warning in dfm_trim.dfm(par_dtm, min_count = 5): min_count is deprecated,
+## use min_termfreq
 par_dtm <- convert(par_dtm, to = "topicmodels") # convert to topicmodels format
 
 set.seed(1)
@@ -241,7 +236,7 @@ keyness = textstat_keyness(dtm_pres, target = "Trump")
 textplot_keyness(keyness)
 ```
 
-![](Text_Analysis_in_R_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-13-1.png)
+![](Text_Analysis_in_R_files/figure-markdown_github/unnamed-chunk-13-1.png)
 
 Advanced Topics
 ---------------
@@ -251,18 +246,19 @@ Advanced Topics
 ``` r
 library(spacyr) 
 spacy_initialize()
-## Finding a python executable with spacy installed...
+## Finding a python executable with spaCy installed...
 ## spaCy (language model: en) is installed in /usr/bin/python
-## successfully initialized (spaCy Version: 1.9.0, language model: en)
+## successfully initialized (spaCy Version: 2.0.9, language model: en)
+## (python options: type = "python_executable", value = "/usr/bin/python")
 d <- spacy_parse("Bob Smith gave Alice his login information.", dependency = TRUE) 
 d[, -c(1,2)]
 ##   token_id       token       lemma   pos head_token_id  dep_rel   entity
 ## 1        1         Bob         bob PROPN             2 compound PERSON_B
 ## 2        2       Smith       smith PROPN             3    nsubj PERSON_I
 ## 3        3        gave        give  VERB             3     ROOT         
-## 4        4       Alice       alice PROPN             3   dative PERSON_B
+## 4        4       Alice       alice PROPN             3   dative         
 ## 5        5         his      -PRON-   ADJ             7     poss         
-## 6        6       login       login  NOUN             7 compound         
+## 6        6       login       login   ADJ             7 compound         
 ## 7        7 information information  NOUN             3     dobj         
 ## 8        8           .           . PUNCT             3    punct
 ```

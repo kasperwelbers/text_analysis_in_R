@@ -3,6 +3,8 @@ title: 'Text Analysis in R: online appendix'
 author: "Kasper Welbers, Wouter van Atteveldt & Kenneth Benoit"
 date: "2017"
 output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -35,9 +37,8 @@ install.packages("corpustools") # advanced topics
 
 ```{r}
 library(readtext)  
-
 # url to Inaugural Address demo data that is provided by the readtext package 
-filepath <- "http://bit.ly/2uhqjJE?.csv"
+filepath <- "https://raw.githubusercontent.com/kbenoit/readtext/master/inst/extdata/csv/inaugCorpus.csv"
 
 rt <- readtext(filepath, text_field = "texts") 
 rt
@@ -140,11 +141,11 @@ train_dtm <- dfm_sample(dtm, size = 40)
 test_dtm <- dtm[setdiff(docnames(dtm), docnames(train_dtm)), ] 
 
 # fit a Naive Bayes multinomial model and use it to predict the test data 
-nb_model <- textmodel_NB(train_dtm, y = docvars(train_dtm, "is_prewar")) 
+nb_model <- textmodel_nb(train_dtm, y = docvars(train_dtm, "is_prewar")) 
 pred_nb <- predict(nb_model, newdata = test_dtm)
 
 # compare prediction (rows) and actual is_prewar value (columns) in a table 
-table(prediction = pred_nb$nb.predicted, is_prewar = docvars(test_dtm, "is_prewar"))
+table(prediction = pred_nb, is_prewar = docvars(test_dtm, "is_prewar"))
 ```
 
 ### Unsupervised Machine Learning
