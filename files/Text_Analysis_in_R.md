@@ -1,31 +1,41 @@
 Text Analysis in R: online appendix
 ================
 Kasper Welbers, Wouter van Atteveldt & Kenneth Benoit
-2017
+2023
 
-About this document
--------------------
+## About this document
 
-This is the online appendix for [Welbers, van Atteveldt & Benoit (2017)](http://www.tandfonline.com/doi/full/10.1080/19312458.2017.1387238), that contains the example code presented in the article. The code in this appendix will be kept up-to-date with changes in the used packages, and as such can differ slightly from the code presented in the article.
+This is the online appendix for [Welbers, van Atteveldt & Benoit
+(2017)](http://www.tandfonline.com/doi/full/10.1080/19312458.2017.1387238),
+that contains the example code presented in the article. The code in
+this appendix will be kept up-to-date with changes in the used packages,
+and as such can differ slightly from the code presented in the article.
 
-In addition, this appendix contains references to other tutorials, that provide additional instructions for alternative, more in-dept or newly developed text anaysis operations.
+<!-- In addition, this appendix contains references to other tutorials, that provide additional instructions for alternative, more in-dept or newly developed text anaylysis operations. -->
 
 ### required packages
 
-The following packages have to be installed to run all the code examples. Note that the lines to install the packages only have to be run once.
+The following packages have to be installed to run all the code
+examples. Note that the lines to install the packages only have to be
+run once.
 
 ``` r
 ################# PACKAGE       # SECTION IN ARTICLE
 install.packages("readtext")    # data preparation
 install.packages("stringi")     # data preparation
+
 install.packages("quanteda")    # data preparation and analysis
+install.packages('quanteda.textmodels') 
+install.packages('quanteda.textstats')
+install.packages('quanteda.textplots')
+
 install.packages("topicmodels") # analysis
+
 install.packages("spacyr")      # advanced topics
 install.packages("corpustools") # advanced topics
 ```
 
-Data Preparation
-----------------
+## Data Preparation
 
 ### String Operations
 
@@ -37,14 +47,23 @@ filepath <- "https://raw.githubusercontent.com/kbenoit/readtext/master/inst/extd
 rt <- readtext(filepath, text_field = "texts") 
 rt
 ## readtext object consisting of 5 documents and 3 docvars.
-## # data.frame [5 x 5]
-##              doc_id                text  Year  President FirstName
-##               <chr>               <chr> <int>      <chr>     <chr>
-## 1 inaugCorpus.csv.1 "\"Fellow-Cit\"..."  1789 Washington    George
-## 2 inaugCorpus.csv.2 "\"Fellow cit\"..."  1793 Washington    George
-## 3 inaugCorpus.csv.3 "\"When it wa\"..."  1797      Adams      John
-## 4 inaugCorpus.csv.4 "\"Friends an\"..."  1801  Jefferson    Thomas
-## 5 inaugCorpus.csv.5 "\"Proceeding\"..."  1805  Jefferson    Thomas
+## $text
+## [1] "# A data frame: 5 × 5"                                                   
+## [2] "  doc_id            text                 Year President  FirstName"      
+## [3] "  <chr>             <chr>               <int> <chr>      <chr>    "      
+## [4] "1 inaugCorpus.csv.1 \"\\\"Fellow-Cit\\\"...\"  1789 Washington George   "
+## [5] "2 inaugCorpus.csv.2 \"\\\"Fellow cit\\\"...\"  1793 Washington George   "
+## [6] "3 inaugCorpus.csv.3 \"\\\"When it wa\\\"...\"  1797 Adams      John     "
+## [7] "4 inaugCorpus.csv.4 \"\\\"Friends an\\\"...\"  1801 Jefferson  Thomas   "
+## [8] "5 inaugCorpus.csv.5 \"\\\"Proceeding\\\"...\"  1805 Jefferson  Thomas   "
+## 
+## $summary
+## $summary[[1]]
+## NULL
+## 
+## 
+## attr(,"class")
+## [1] "trunc_mat"
 ```
 
 ### String Operations
@@ -66,19 +85,21 @@ x
 
 ``` r
 library(quanteda) 
-## Package version: 1.3.0
-## Parallel computing: 2 of 4 threads used.
+## Package version: 3.3.0
+## Unicode version: 14.0
+## ICU version: 70.1
+## Parallel computing: 8 of 8 threads used.
 ## See https://quanteda.io for tutorials and examples.
 ## 
 ## Attaching package: 'quanteda'
-## The following object is masked from 'package:utils':
+## The following objects are masked from 'package:readtext':
 ## 
-##     View
+##     docnames, docvars, texts
 
 text <- "An example of preprocessing techniques" 
 toks <- tokens(text)  # tokenize into unigrams 
 toks
-## tokens from 1 document.
+## Tokens consisting of 1 document.
 ## text1 :
 ## [1] "An"            "example"       "of"            "preprocessing"
 ## [5] "techniques"
@@ -90,7 +111,7 @@ toks
 toks <- tokens_tolower(toks) 
 toks <- tokens_wordstem(toks) 
 toks
-## tokens from 1 document.
+## Tokens consisting of 1 document.
 ## text1 :
 ## [1] "an"         "exampl"     "of"         "preprocess" "techniqu"
 ```
@@ -102,34 +123,74 @@ sw <- stopwords("english")   # get character vector of stopwords
 head(sw)                     # show head (first 6) stopwords
 ## [1] "i"      "me"     "my"     "myself" "we"     "our"
 tokens_remove(toks, sw)
-## tokens from 1 document.
+## Tokens consisting of 1 document.
 ## text1 :
 ## [1] "exampl"     "preprocess" "techniqu"
 ```
 
 ### Document-Term Matrix
 
+Since the publication of the Text Analysis in R paper, the quanteda
+package has gone through several updates. One important change is that
+many operations are now cut down into separate steps. This works nicely
+together with the now common pipe notation (`|>`, or `%>%` in
+tidyverse).
+
+Before, we created a dfm with one single do-it-all function. Now, we run
+our data through a pipeline of functions that each perform a single
+step.
+
 ``` r
 text <-  c(d1 = "An example of preprocessing techniques",  
            d2 = "An additional example",  
            d3 = "A third example") 
-dtm <- dfm(text,                           # input text
-           tolower = TRUE, stem = TRUE,    # set lowercasing and stemming to TRUE
-           remove = stopwords("english"))  # provide the stopwords for deletion
+
+dtm <- text |>
+  corpus() |>                          ## create quanteda corpus
+  tokens() |>                          ## tokenize the corpus
+  dfm() |>                             ## structure tokens as Document Term Matrix
+  dfm_tolower() |>                     ## preprocessing: lowercase
+  dfm_wordstem() |>                    ## preprocessing: stemming
+  dfm_remove(stopwords('english'))     ## preprocessing: remove English stopwords
+  
 dtm
-## Document-feature matrix of: 3 documents, 5 features (53.3% sparse).
-## 3 x 5 sparse Matrix of class "dfm"
+## Document-feature matrix of: 3 documents, 5 features (53.33% sparse) and 0 docvars.
 ##     features
 ## docs exampl preprocess techniqu addit third
 ##   d1      1          1        1     0     0
 ##   d2      1          0        0     1     0
 ##   d3      1          0        0     0     1
+```
 
-fulltext <- corpus(rt)                              # create quanteda corpus 
-dtm <- dfm(fulltext, tolower = TRUE, stem = TRUE,   # create dtm with preprocessing
-           remove_punct = TRUE,remove = stopwords("english")) 
+Create the DTM using the inaugural speeches (rt) that we read into R
+above.
+
+``` r
+dtm <- rt |> 
+  corpus() |> 
+  tokens() |>
+  dfm() |>
+  dfm_tolower() |>
+  dfm_wordstem() |>
+  dfm_remove(stopwords('english')) 
+
 dtm
-## Document-feature matrix of: 5 documents, 1,405 features (67.9% sparse).
+## Document-feature matrix of: 5 documents, 1,422 features (67.45% sparse) and 3 docvars.
+##                    features
+## docs                fellow-citizen senat hous repres : among vicissitud incid
+##   inaugCorpus.csv.1              1     1    2      2 1     1          1     1
+##   inaugCorpus.csv.2              0     0    0      0 1     0          0     0
+##   inaugCorpus.csv.3              3     1    3      3 0     4          0     0
+##   inaugCorpus.csv.4              2     0    0      1 1     1          0     0
+##   inaugCorpus.csv.5              0     0    0      0 0     7          0     0
+##                    features
+## docs                life event
+##   inaugCorpus.csv.1    1     2
+##   inaugCorpus.csv.2    0     0
+##   inaugCorpus.csv.3    2     0
+##   inaugCorpus.csv.4    1     0
+##   inaugCorpus.csv.5    2     1
+## [ reached max_nfeat ... 1,412 more features ]
 ```
 
 ### Filtering and weighting
@@ -137,22 +198,58 @@ dtm
 ``` r
 doc_freq <- docfreq(dtm)         # document frequency per term (column) 
 dtm <- dtm[, doc_freq >= 2]      # select terms with doc_freq >= 2 
-dtm <- dfm_weight(dtm, "tfidf")  # weight the features using tf-idf 
-## Warning: scheme = "tfidf" is deprecated; use dfm_tfidf(x) instead
+dtm <- dfm_tfidf(dtm)            # weight the features using tf-idf 
 head(dtm)
-## Document-feature matrix of: 5 documents, 516 features (46.9% sparse).
+## Document-feature matrix of: 5 documents, 530 features (46.34% sparse) and 3 docvars.
+##                    features
+## docs                fellow-citizen   senat    hous    repres         :
+##   inaugCorpus.csv.1      0.2218487 0.39794 0.79588 0.4436975 0.2218487
+##   inaugCorpus.csv.2      0         0       0       0         0.2218487
+##   inaugCorpus.csv.3      0.6655462 0.39794 1.19382 0.6655462 0        
+##   inaugCorpus.csv.4      0.4436975 0       0       0.2218487 0.2218487
+##   inaugCorpus.csv.5      0         0       0       0         0        
+##                    features
+## docs                     among       life   event greater anxieti
+##   inaugCorpus.csv.1 0.09691001 0.09691001 0.79588 0.39794 0.39794
+##   inaugCorpus.csv.2 0          0          0       0       0      
+##   inaugCorpus.csv.3 0.38764005 0.19382003 0       0       0.39794
+##   inaugCorpus.csv.4 0.09691001 0.09691001 0       0.39794 0      
+##   inaugCorpus.csv.5 0.67837009 0.19382003 0.39794 0       0      
+## [ reached max_nfeat ... 520 more features ]
 ```
 
-Analysis
---------
+## Analysis
 
 Prepare DTM for analysis examples.
 
 ``` r
-dtm <- dfm(data_corpus_inaugural, stem = TRUE, remove = stopwords("english"),  
-           remove_punct = TRUE) 
+dtm <- data_corpus_inaugural |>
+  corpus() |> 
+  tokens(remove_punct = T) |> 
+  dfm() |>
+  dfm_tolower() |> 
+  dfm_wordstem() |>
+  dfm_remove(stopwords('english'))
+
 dtm
-## Document-feature matrix of: 58 documents, 5,405 features (89.2% sparse).
+## Document-feature matrix of: 59 documents, 5,468 features (89.25% sparse) and 4 docvars.
+##                  features
+## docs              fellow-citizen senat hous repres among vicissitud incid life
+##   1789-Washington              1     1    2      2     1          1     1    1
+##   1793-Washington              0     0    0      0     0          0     0    0
+##   1797-Adams                   3     1    3      3     4          0     0    2
+##   1801-Jefferson               2     0    0      1     1          0     0    1
+##   1805-Jefferson               0     0    0      0     7          0     0    2
+##   1809-Madison                 1     0    0      1     0          1     0    1
+##                  features
+## docs              event fill
+##   1789-Washington     2    1
+##   1793-Washington     0    0
+##   1797-Adams          0    0
+##   1801-Jefferson      0    0
+##   1805-Jefferson      1    0
+##   1809-Madison        0    1
+## [ reached max_ndoc ... 53 more documents, reached max_nfeat ... 5,458 more features ]
 ```
 
 ### Counting and Dictionary
@@ -162,19 +259,23 @@ myDict <- dictionary(list(terror = c("terror*"),
                           economy = c("job*", "business*", "econom*"))) 
 dict_dtm <- dfm_lookup(dtm, myDict, nomatch = "_unmatched") 
 tail(dict_dtm)
-## Document-feature matrix of: 6 documents, 3 features (16.7% sparse).
-## 6 x 3 sparse Matrix of class "dfm"
-##               features
-## docs           terror economy _unmatched
-##   1997-Clinton      2       3       1125
-##   2001-Bush         0       2        782
-##   2005-Bush         0       1       1040
-##   2009-Obama        1       7       1165
-##   2013-Obama        0       6       1030
-##   2017-Trump        1       5        709
+## Document-feature matrix of: 6 documents, 3 features (16.67% sparse) and 4 docvars.
+##             features
+## docs         terror economy _unmatched
+##   2001-Bush       0       2        796
+##   2005-Bush       0       1       1056
+##   2009-Obama      1       7       1192
+##   2013-Obama      0       6       1052
+##   2017-Trump      1       5        723
+##   2021-Biden      1       4       1146
 ```
 
 ### Supervised Machine Learning
+
+``` r
+library(quanteda)
+library(quanteda.textmodels)
+```
 
 ``` r
 set.seed(2) 
@@ -193,8 +294,8 @@ pred_nb <- predict(nb_model, newdata = test_dtm)
 table(prediction = pred_nb, is_prewar = docvars(test_dtm, "is_prewar"))
 ##           is_prewar
 ## prediction FALSE TRUE
-##      FALSE     8    0
-##      TRUE      0   10
+##      FALSE     6    0
+##      TRUE      0   13
 ```
 
 ### Unsupervised Machine Learning
@@ -204,71 +305,65 @@ library(topicmodels)
 
 texts = corpus_reshape(data_corpus_inaugural, to = "paragraphs")
 
-par_dtm <- dfm(texts, stem = TRUE,              # create a document-term matrix
-               remove_punct = TRUE, remove = stopwords("english"))
-par_dtm <- dfm_trim(par_dtm, min_count = 5)     # remove rare terms
-## Warning in dfm_trim.dfm(par_dtm, min_count = 5): min_count is deprecated,
-## use min_termfreq
-par_dtm <- convert(par_dtm, to = "topicmodels") # convert to topicmodels format
+par_dtm <- texts |> corpus() |> tokens(remove_punct = T) |> 
+  dfm() |> dfm_tolower() |> dfm_wordstem() |> 
+  dfm_remove(stopwords('english')) |> dfm_trim(min_count = 5) |>
+  convert(to = 'topicmodels')
 
 set.seed(1)
 lda_model <- topicmodels::LDA(par_dtm, method = "Gibbs", k = 5) 
 terms(lda_model, 5)
-##      Topic 1     Topic 2  Topic 3   Topic 4    Topic 5  
-## [1,] "govern"    "nation" "great"   "us"       "shall"  
-## [2,] "state"     "can"    "war"     "world"    "citizen"
-## [3,] "power"     "must"   "secur"   "new"      "peopl"  
-## [4,] "constitut" "peopl"  "countri" "american" "duti"   
-## [5,] "law"       "everi"  "unit"    "america"  "countri"
+##      Topic 1  Topic 2     Topic 3   Topic 4    Topic 5  
+## [1,] "nation" "state"     "great"   "us"       "shall"  
+## [2,] "peopl"  "govern"    "govern"  "american" "peopl"  
+## [3,] "can"    "power"     "war"     "new"      "duti"   
+## [4,] "must"   "constitut" "countri" "america"  "countri"
+## [5,] "everi"  "ani"       "secur"   "world"    "citizen"
 ```
 
 ### Statistics
 
 ``` r
+library(quanteda.textstats)
+library(quanteda.textplots)
+
 # create DTM that contains Trump and Obama speeches
-corpus_pres = corpus_subset(data_corpus_inaugural, 
-                            President %in% c("Obama", "Trump"))
-dtm_pres = dfm(corpus_pres, groups = "President", 
-               remove = stopwords("english"), remove_punct = TRUE)
+dtm_pres <- data_corpus_inaugural |>
+  corpus_subset(President %in% c('Obama','Trump')) |>
+  tokens(remove_punct = T) |> 
+  dfm() |>
+  dfm_remove(stopwords('english'))
 
 # compare target (in this case Trump) to rest of DTM (in this case only Obama).
-keyness = textstat_keyness(dtm_pres, target = "Trump") 
-textplot_keyness(keyness)
+dtm_pres |>
+  dfm_group(President) |>
+  textstat_keyness(target = "Trump") |>
+  textplot_keyness()
 ```
 
-![](Text_Analysis_in_R_files/figure-markdown_github/unnamed-chunk-13-1.png)
+![](Text_Analysis_in_R_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
-Advanced Topics
----------------
+## Advanced Topics
 
 ### Advanced NLP
 
 ``` r
 library(spacyr) 
+spacy_install()
 spacy_initialize()
-## Finding a python executable with spaCy installed...
-## spaCy (language model: en) is installed in /usr/bin/python
-## successfully initialized (spaCy Version: 2.0.9, language model: en)
-## (python options: type = "python_executable", value = "/usr/bin/python")
 d <- spacy_parse("Bob Smith gave Alice his login information.", dependency = TRUE) 
 d[, -c(1,2)]
-##   token_id       token       lemma   pos head_token_id  dep_rel   entity
-## 1        1         Bob         bob PROPN             2 compound PERSON_B
-## 2        2       Smith       smith PROPN             3    nsubj PERSON_I
-## 3        3        gave        give  VERB             3     ROOT         
-## 4        4       Alice       alice PROPN             3   dative         
-## 5        5         his      -PRON-   ADJ             7     poss         
-## 6        6       login       login   ADJ             7 compound         
-## 7        7 information information  NOUN             3     dobj         
-## 8        8           .           . PUNCT             3    punct
 ```
 
 ### Word Positions and Syntax
 
 ``` r
 text <- "an example of preprocessing techniques" 
-tokens(text, ngrams = 3, skip = 0:1)
-## tokens from 1 document.
+
+text |>
+  tokens() |>
+  tokens_ngrams(n=3, skip=0:1)
+## Tokens consisting of 1 document.
 ## text1 :
 ## [1] "an_example_of"                    "an_example_preprocessing"        
 ## [3] "an_of_preprocessing"              "an_of_techniques"                
@@ -278,13 +373,10 @@ tokens(text, ngrams = 3, skip = 0:1)
 
 ``` r
 library(corpustools)
-## Loading required package: Matrix
-## Loading required package: data.table
  
 tc <- create_tcorpus(sotu_texts, doc_column = "id") 
-hits <- tc$search_features('"freedom americ*"~5')
-## created index for "token" column
-kwic <- tc$kwic(hits, ntokens = 3) 
+hits <- search_features(tc, '"freedom americ*"~5')
+kwic <- get_kwic(tc, hits, ntokens = 3) 
 head(kwic$kwic, 3)
 ## [1] "...making progress toward <freedom> will find <America> is their friend..."    
 ## [2] "...friends, and <freedom> in Iraq will make <America> safer for generations..."

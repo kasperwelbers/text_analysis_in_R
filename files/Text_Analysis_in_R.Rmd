@@ -1,7 +1,7 @@
 ---
 title: 'Text Analysis in R: online appendix'
 author: "Kasper Welbers, Wouter van Atteveldt & Kenneth Benoit"
-date: "2017"
+date: "2023"
 output: github_document
 editor_options: 
   chunk_output_type: console
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE, collapse = TRUE)
 
 This is the online appendix for [Welbers, van Atteveldt & Benoit (2017)](http://www.tandfonline.com/doi/full/10.1080/19312458.2017.1387238), that contains the example code presented in the article. The code in this appendix will be kept up-to-date with changes in the used packages, and as such can differ slightly from the code presented in the article.
 
-In addition, this appendix contains references to other tutorials, that provide additional instructions for alternative, more in-dept or newly developed text anaysis operations.
+<!-- In addition, this appendix contains references to other tutorials, that provide additional instructions for alternative, more in-dept or newly developed text anaylysis operations. -->
 
 ### required packages
 
@@ -25,8 +25,14 @@ The following packages have to be installed to run all the code examples. Note t
 ################# PACKAGE       # SECTION IN ARTICLE
 install.packages("readtext")    # data preparation
 install.packages("stringi")     # data preparation
+
 install.packages("quanteda")    # data preparation and analysis
+install.packages('quanteda.textmodels') 
+install.packages('quanteda.textstats')
+install.packages('quanteda.textplots')
+
 install.packages("topicmodels") # analysis
+
 install.packages("spacyr")      # advanced topics
 install.packages("corpustools") # advanced topics
 ```
@@ -86,18 +92,40 @@ tokens_remove(toks, sw)
 
 ### Document-Term Matrix
 
+Since the publication of the Text Analysis in R paper, the quanteda package has gone through several updates. 
+One important change is that many operations are now cut down into separate steps.
+This works nicely together with the now common pipe notation (`|>`, or `%>%` in tidyverse).
+
+Before, we created a dfm with one single do-it-all function. 
+Now, we run our data through a pipeline of functions that each perform a single step.
+
 ```{r}
 text <-  c(d1 = "An example of preprocessing techniques",  
            d2 = "An additional example",  
            d3 = "A third example") 
-dtm <- dfm(text,                           # input text
-           tolower = TRUE, stem = TRUE,    # set lowercasing and stemming to TRUE
-           remove = stopwords("english"))  # provide the stopwords for deletion
-dtm
 
-fulltext <- corpus(rt)                              # create quanteda corpus 
-dtm <- dfm(fulltext, tolower = TRUE, stem = TRUE,   # create dtm with preprocessing
-           remove_punct = TRUE,remove = stopwords("english")) 
+dtm <- text |>
+  corpus() |>                          ## create quanteda corpus
+  tokens() |>                          ## tokenize the corpus
+  dfm() |>                             ## structure tokens as Document Term Matrix
+  dfm_tolower() |>                     ## preprocessing: lowercase
+  dfm_wordstem() |>                    ## preprocessing: stemming
+  dfm_remove(stopwords('english'))     ## preprocessing: remove English stopwords
+  
+dtm
+```
+
+Create the DTM using the inaugural speeches (rt) that we read into R above.
+
+```{r}
+dtm <- rt |> 
+  corpus() |> 
+  tokens() |>
+  dfm() |>
+  dfm_tolower() |>
+  dfm_wordstem() |>
+  dfm_remove(stopwords('english')) 
+
 dtm
 ```
 
@@ -106,7 +134,7 @@ dtm
 ```{r}
 doc_freq <- docfreq(dtm)         # document frequency per term (column) 
 dtm <- dtm[, doc_freq >= 2]      # select terms with doc_freq >= 2 
-dtm <- dfm_weight(dtm, "tfidf")  # weight the features using tf-idf 
+dtm <- dfm_tfidf(dtm)            # weight the features using tf-idf 
 head(dtm)
 ```
 
@@ -115,8 +143,14 @@ head(dtm)
 Prepare DTM for analysis examples.
 
 ```{r}
-dtm <- dfm(data_corpus_inaugural, stem = TRUE, remove = stopwords("english"),  
-           remove_punct = TRUE) 
+dtm <- data_corpus_inaugural |>
+  corpus() |> 
+  tokens(remove_punct = T) |> 
+  dfm() |>
+  dfm_tolower() |> 
+  dfm_wordstem() |>
+  dfm_remove(stopwords('english'))
+
 dtm
 ```
 
@@ -130,6 +164,11 @@ tail(dict_dtm)
 ```
 
 ### Supervised Machine Learning
+
+```{r}
+library(quanteda)
+library(quanteda.textmodels)
+```
 
 ```{r}
 set.seed(2) 
@@ -155,10 +194,10 @@ library(topicmodels)
 
 texts = corpus_reshape(data_corpus_inaugural, to = "paragraphs")
 
-par_dtm <- dfm(texts, stem = TRUE,          	# create a document-term matrix
-               remove_punct = TRUE, remove = stopwords("english"))
-par_dtm <- dfm_trim(par_dtm, min_count = 5) 	# remove rare terms
-par_dtm <- convert(par_dtm, to = "topicmodels") # convert to topicmodels format
+par_dtm <- texts |> corpus() |> tokens(remove_punct = T) |> 
+  dfm() |> dfm_tolower() |> dfm_wordstem() |> 
+  dfm_remove(stopwords('english')) |> dfm_trim(min_count = 5) |>
+  convert(to = 'topicmodels')
 
 set.seed(1)
 lda_model <- topicmodels::LDA(par_dtm, method = "Gibbs", k = 5) 
@@ -168,15 +207,21 @@ terms(lda_model, 5)
 ### Statistics
 
 ```{r}
+library(quanteda.textstats)
+library(quanteda.textplots)
+
 # create DTM that contains Trump and Obama speeches
-corpus_pres = corpus_subset(data_corpus_inaugural, 
-                            President %in% c("Obama", "Trump"))
-dtm_pres = dfm(corpus_pres, groups = "President", 
-               remove = stopwords("english"), remove_punct = TRUE)
+dtm_pres <- data_corpus_inaugural |>
+  corpus_subset(President %in% c('Obama','Trump')) |>
+  tokens(remove_punct = T) |> 
+  dfm() |>
+  dfm_remove(stopwords('english'))
 
 # compare target (in this case Trump) to rest of DTM (in this case only Obama).
-keyness = textstat_keyness(dtm_pres, target = "Trump") 
-textplot_keyness(keyness)
+dtm_pres |>
+  dfm_group(President) |>
+  textstat_keyness(target = "Trump") |>
+  textplot_keyness()
 ```
 
 
@@ -184,8 +229,9 @@ textplot_keyness(keyness)
 
 ### Advanced NLP
 
-```{r}
+```{r, eval=F}
 library(spacyr) 
+spacy_install()
 spacy_initialize()
 d <- spacy_parse("Bob Smith gave Alice his login information.", dependency = TRUE) 
 d[, -c(1,2)]
@@ -195,14 +241,17 @@ d[, -c(1,2)]
 
 ```{r}
 text <- "an example of preprocessing techniques" 
-tokens(text, ngrams = 3, skip = 0:1)
+
+text |>
+  tokens() |>
+  tokens_ngrams(n=3, skip=0:1)
 ```
 
 ```{r}
 library(corpustools)
  
 tc <- create_tcorpus(sotu_texts, doc_column = "id") 
-hits <- tc$search_features('"freedom americ*"~5')
-kwic <- tc$kwic(hits, ntokens = 3) 
+hits <- search_features(tc, '"freedom americ*"~5')
+kwic <- get_kwic(tc, hits, ntokens = 3) 
 head(kwic$kwic, 3)
 ```
